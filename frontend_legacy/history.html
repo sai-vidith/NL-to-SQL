@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus — Query History</title>
+  
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/animations.css">
+</head>
+<body>
+
+  <div class="app-layout animate-fade-in">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon pulse-glow"></div>
+          <span class="gradient-text">Nexus</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/query.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>Query Workspace</span>
+        </a>
+        <a href="/history.html" class="nav-link active">
+          <span class="nav-icon">📜</span>
+          <span>History</span>
+        </a>
+        <a href="/saved.html" class="nav-link">
+          <span class="nav-icon">🔖</span>
+          <span>Saved Queries</span>
+        </a>
+        <a href="/admin.html" id="admin-nav-link" class="nav-link hidden">
+          <span class="nav-icon">🛡️</span>
+          <span>Admin Panel</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-name" id="user-name">Loading...</div>
+          <div class="user-role" id="user-role">viewer</div>
+        </div>
+        <button class="btn btn-ghost" id="btn-logout" style="padding: var(--space-2);">
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="header">
+        <h2 style="font-size: var(--text-xl);">Query History</h2>
+      </header>
+
+      <div class="page-container">
+        <!-- Search and filters -->
+        <div class="card" style="margin-bottom: var(--space-6); padding: var(--space-4);">
+          <div class="flex gap-4 items-center" style="flex-wrap: wrap;">
+            <input type="text" id="history-search" class="input" placeholder="Search past questions..." style="flex: 1; min-width: 250px;">
+            <select id="filter-intent" class="select" style="width: 180px;">
+              <option value="">All Categories</option>
+              <option value="sales">Sales</option>
+              <option value="customers">Customers</option>
+              <option value="inventory">Inventory</option>
+              <option value="finance">Finance</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- History Content -->
+        <div class="card">
+          <div class="table-container">
+            <table class="table" id="history-table">
+              <thead>
+                <tr>
+                  <th>Question</th>
+                  <th>Category</th>
+                  <th>Execution time</th>
+                  <th>Row Count</th>
+                  <th>Executed At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Pagination -->
+          <div class="flex justify-between items-center" style="margin-top: var(--space-6);">
+            <div style="font-size: var(--text-sm); color: var(--text-secondary);" id="pagination-info">
+              Showing 0 queries
+            </div>
+            <div class="flex gap-2">
+              <button class="btn btn-secondary" id="btn-prev-page" disabled>Previous</button>
+              <button class="btn btn-secondary" id="btn-next-page" disabled>Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { api } from '/js/api.js';
+    import { getCurrentUser, requireAuth } from '/js/auth.js';
+    import { formatDate, formatDuration } from '/js/utils.js';
+
+    requireAuth();
+
+    const user = getCurrentUser();
+    if (user) {
+      document.getElementById('user-name').innerText = user.username;
+      document.getElementById('user-role').innerText = user.role;
+      if (user.role === 'admin') {
+        document.getElementById('admin-nav-link').classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      api.logout();
+    });
+
+    let currentPage = 1;
+    const pageSize = 15;
+
+    const tableBody = document.getElementById('history-table-body');
+    const paginationInfo = document.getElementById('pagination-info');
+    const btnPrev = document.getElementById('btn-prev-page');
+    const btnNext = document.getElementById('btn-next-page');
+    const searchInput = document.getElementById('history-search');
+    const filterIntent = document.getElementById('filter-intent');
+
+    async function loadHistory() {
+      try {
+        const data = await api.getHistory(currentPage, pageSize);
+        
+        let filteredItems = data.items;
+        
+        // Local filters
+        const searchVal = searchInput.value.toLowerCase().trim();
+        if (searchVal) {
+          filteredItems = filteredItems.filter(item => item.question.toLowerCase().includes(searchVal));
+        }
+        
+        const intentVal = filterIntent.value;
+        if (intentVal) {
+          filteredItems = filteredItems.filter(item => item.intent === intentVal);
+        }
+
+        tableBody.innerHTML = '';
+        if (filteredItems.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;" class="text-tertiary">No queries found matching the criteria.</td></tr>';
+          paginationInfo.innerText = 'Showing 0 queries';
+          btnPrev.disabled = true;
+          btnNext.disabled = true;
+          return;
+        }
+
+        filteredItems.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="font-medium" style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${escapeHtml(item.question)}
+            </td>
+            <td><span class="badge badge-info">${item.intent}</span></td>
+            <td>${formatDuration(item.execution_time_ms)}</td>
+            <td>${item.row_count} rows</td>
+            <td>${formatDate(item.created_at)}</td>
+            <td>
+              <button class="btn btn-secondary btn-rerun" data-question="${escapeHtml(item.question)}" style="padding: var(--space-1) var(--space-3); font-size: var(--text-xs);">
+                🔄 Run
+              </button>
+            </td>
+          `;
+          tableBody.appendChild(tr);
+        });
+
+        // Event listeners for rerun
+        document.querySelectorAll('.btn-rerun').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const question = e.currentTarget.getAttribute('data-question');
+            window.location.href = `/query.html?q=${encodeURIComponent(question)}`;
+          });
+        });
+
+        paginationInfo.innerText = `Showing ${filteredItems.length} of ${data.total} queries`;
+        btnPrev.disabled = currentPage === 1;
+        btnNext.disabled = currentPage * pageSize >= data.total;
+
+      } catch (err) {
+        console.error('Failed to load history list', err);
+      }
+    }
+
+    btnPrev.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        loadHistory();
+      }
+    });
+
+    btnNext.addEventListener('click', () => {
+      currentPage++;
+      loadHistory();
+    });
+
+    searchInput.addEventListener('input', () => {
+      currentPage = 1;
+      loadHistory();
+    });
+
+    filterIntent.addEventListener('change', () => {
+      currentPage = 1;
+      loadHistory();
+    });
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>

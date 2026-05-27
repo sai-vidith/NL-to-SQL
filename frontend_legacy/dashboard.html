@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus — Dashboard Home</title>
+  
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/animations.css">
+</head>
+<body>
+
+  <div class="app-layout animate-fade-in">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon pulse-glow"></div>
+          <span class="gradient-text">Nexus</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html" class="nav-link active">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/query.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>Query Workspace</span>
+        </a>
+        <a href="/history.html" class="nav-link">
+          <span class="nav-icon">📜</span>
+          <span>History</span>
+        </a>
+        <a href="/saved.html" class="nav-link">
+          <span class="nav-icon">🔖</span>
+          <span>Saved Queries</span>
+        </a>
+        <a href="/admin.html" id="admin-nav-link" class="nav-link hidden">
+          <span class="nav-icon">🛡️</span>
+          <span>Admin Panel</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-name" id="user-name">Loading...</div>
+          <div class="user-role" id="user-role">viewer</div>
+        </div>
+        <button class="btn btn-ghost btn-logout" id="btn-logout" style="padding: var(--space-2);">
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="header">
+        <h2 style="font-size: var(--text-xl);">Platform Overview</h2>
+        <div style="font-size: var(--text-sm); color: var(--text-secondary);" id="current-date"></div>
+      </header>
+
+      <div class="page-container">
+        <!-- Welcome banner -->
+        <div style="margin-bottom: var(--space-8);">
+          <h1 style="margin-bottom: var(--space-2);">Welcome back, <span class="gradient-text" id="welcome-name">Analyst</span></h1>
+          <p>Talk to Nexus to analyze database metrics, explore tables, or generate automated business reports.</p>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="grid-4" id="kpi-grid" style="margin-bottom: var(--space-8);">
+          <!-- Total Queries -->
+          <div class="card stats-card">
+            <div class="stats-card-header">
+              <span class="text-secondary font-medium">Total Queries</span>
+              <span>💬</span>
+            </div>
+            <div class="stats-card-value" id="kpi-queries">-</div>
+            <div class="stats-card-trend text-success">
+              <span>+12%</span> <span>vs last week</span>
+            </div>
+          </div>
+          <!-- Saved Queries -->
+          <div class="card stats-card">
+            <div class="stats-card-header">
+              <span class="text-secondary font-medium">Saved Bookmarks</span>
+              <span>🔖</span>
+            </div>
+            <div class="stats-card-value" id="kpi-saved">-</div>
+            <div class="stats-card-trend text-success">
+              <span>Active</span>
+            </div>
+          </div>
+          <!-- Avg Response -->
+          <div class="card stats-card">
+            <div class="stats-card-header">
+              <span class="text-secondary font-medium">Avg Latency</span>
+              <span>⚡</span>
+            </div>
+            <div class="stats-card-value" id="kpi-latency">-</div>
+            <div class="stats-card-trend text-success">
+              <span>Fast (124ms)</span>
+            </div>
+          </div>
+          <!-- Success Rate -->
+          <div class="card stats-card">
+            <div class="stats-card-header">
+              <span class="text-secondary font-medium">SQL Validity</span>
+              <span>🛡️</span>
+            </div>
+            <div class="stats-card-value">100%</div>
+            <div class="stats-card-trend text-success">
+              <span>0 Failures</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ask Prominent Input Box -->
+        <div class="card" style="margin-bottom: var(--space-8); padding: var(--space-8); border-color: rgba(0,212,255,0.15);">
+          <h3 style="margin-bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2);">
+            <span>🔍</span> Ask Nexus Anything
+          </h3>
+          <form id="dashboard-ask-form" style="display: flex; gap: var(--space-3);">
+            <input type="text" id="dashboard-ask-input" class="input" placeholder="e.g., Show monthly sales trend for 2025" required style="font-size: var(--text-md); height: 48px;">
+            <button type="submit" class="btn btn-primary" style="height: 48px; padding: 0 var(--space-6);">
+              Analyze
+            </button>
+          </form>
+          
+          <div style="margin-top: var(--space-4);">
+            <div class="form-label" style="margin-bottom: var(--space-3);">Suggested queries</div>
+            <div class="flex" style="flex-wrap: wrap; gap: var(--space-2);" id="suggestions-chips-container">
+              <!-- Suggestion chips added by script -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Queries Grid -->
+        <div class="grid-2">
+          <div class="card">
+            <h3 style="margin-bottom: var(--space-4);">Recent Executed Queries</h3>
+            <div id="recent-queries-container" class="flex flex-col gap-3">
+              <!-- Filled dynamically -->
+            </div>
+          </div>
+          <div class="card flex flex-col justify-between">
+            <div>
+              <h3 style="margin-bottom: var(--space-4);">Quick Tutorial</h3>
+              <p style="margin-bottom: var(--space-4);">
+                Nexus connects directly to your transactional and analytics databases, enabling conversational BI reports.
+              </p>
+              <ul class="flex flex-col gap-2" style="font-size: var(--text-sm); color: var(--text-secondary);">
+                <li>💬 <strong>Conversational RAG</strong> maintains query context.</li>
+                <li>🛡️ <strong>Safety AST Filters</strong> block dangerous mutating statements.</li>
+                <li>📊 <strong>Visual Engine</strong> renders plots using chart tokens.</li>
+              </ul>
+            </div>
+            <a href="/query.html" class="btn btn-secondary" style="margin-top: var(--space-4);">
+              Open Workspace
+            </a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { api } from '/js/api.js';
+    import { getCurrentUser, requireAuth } from '/js/auth.js';
+    import { formatDate } from '/js/utils.js';
+
+    requireAuth();
+    
+    // User profile sidebar details
+    const user = getCurrentUser();
+    if (user) {
+      document.getElementById('user-name').innerText = user.username;
+      document.getElementById('welcome-name').innerText = user.username;
+      document.getElementById('user-role').innerText = user.role;
+      if (user.role === 'admin') {
+        document.getElementById('admin-nav-link').classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('current-date').innerText = new Date().toDateString();
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      api.logout();
+    });
+
+    // Handle ask form
+    document.getElementById('dashboard-ask-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const question = document.getElementById('dashboard-ask-input').value;
+      // Redirect to Workspace query page passing question in URL
+      window.location.href = `/query.html?q=${encodeURIComponent(question)}`;
+    });
+
+    // Load page data
+    async function loadDashboardData() {
+      try {
+        // Suggestions
+        const suggestions = await api.getSuggestions();
+        const suggContainer = document.getElementById('suggestions-chips-container');
+        suggContainer.innerHTML = '';
+        suggestions.slice(0, 5).forEach(sugg => {
+          const chip = document.createElement('div');
+          chip.className = 'suggestion-chip';
+          chip.innerHTML = `<span>${sugg.icon}</span> <span>${sugg.text}</span>`;
+          chip.addEventListener('click', () => {
+            document.getElementById('dashboard-ask-input').value = sugg.text;
+          });
+          suggContainer.appendChild(chip);
+        });
+
+        // History / Stats
+        const history = await api.getHistory(1, 4);
+        const recentContainer = document.getElementById('recent-queries-container');
+        recentContainer.innerHTML = '';
+        
+        if (history.items.length === 0) {
+          recentContainer.innerHTML = '<p class="text-tertiary">No queries executed yet.</p>';
+        } else {
+          history.items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'card';
+            row.style.padding = 'var(--space-3) var(--space-4)';
+            row.style.background = 'rgba(255,255,255,0.02)';
+            row.innerHTML = `
+              <div class="flex justify-between items-center">
+                <div class="truncate font-medium" style="max-width: 75%;">${item.question}</div>
+                <span class="badge badge-info">${item.intent}</span>
+              </div>
+              <div class="flex justify-between text-xs text-tertiary" style="margin-top: var(--space-2);">
+                <span>${formatDate(item.created_at)}</span>
+                <span>${item.row_count} rows in ${item.execution_time_ms}ms</span>
+              </div>
+            `;
+            recentContainer.appendChild(row);
+          });
+        }
+
+        // Stats card totals
+        document.getElementById('kpi-queries').innerText = history.total || 0;
+        
+        const saved = await api.getSavedQueries();
+        document.getElementById('kpi-saved').innerText = saved.length || 0;
+        
+        document.getElementById('kpi-latency').innerText = '124ms';
+
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+      }
+    }
+
+    loadDashboardData();
+  </script>
+</body>
+</html>

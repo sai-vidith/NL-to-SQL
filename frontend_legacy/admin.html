@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus — Admin Portal</title>
+  
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/animations.css">
+</head>
+<body>
+
+  <div class="app-layout animate-fade-in">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon pulse-glow"></div>
+          <span class="gradient-text">Nexus</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/query.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>Query Workspace</span>
+        </a>
+        <a href="/history.html" class="nav-link">
+          <span class="nav-icon">📜</span>
+          <span>History</span>
+        </a>
+        <a href="/saved.html" class="nav-link">
+          <span class="nav-icon">🔖</span>
+          <span>Saved Queries</span>
+        </a>
+        <a href="/admin.html" id="admin-nav-link" class="nav-link active">
+          <span class="nav-icon">🛡️</span>
+          <span>Admin Panel</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-name" id="user-name">Loading...</div>
+          <div class="user-role" id="user-role">admin</div>
+        </div>
+        <button class="btn btn-ghost" id="btn-logout" style="padding: var(--space-2);">
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="header">
+        <h2 style="font-size: var(--text-xl);">System Administration</h2>
+      </header>
+
+      <div class="page-container">
+        <!-- Stats Row -->
+        <div class="grid-4" style="margin-bottom: var(--space-8);">
+          <div class="card stats-card">
+            <div class="stats-card-header">
+              <span class="text-secondary font-medium">Total Registered Users</span>
+            </div>
+            <div class="stats-card-value" id="stat-users">-</div>
+          </div>
+          <div class="card stats-card">
+            <div class="stats-card-header">
+              <span class="text-secondary font-medium">Global queries ran</span>
+            </div>
+            <div class="stats-card-value" id="stat-queries">-</div>
+          </div>
+          <div class="card stats-card">
+            <div class="stats-card-header">
+              <span class="text-secondary font-medium">Active Users (24h)</span>
+            </div>
+            <div class="stats-card-value" id="stat-active">-</div>
+          </div>
+          <div class="card stats-card">
+            <div class="stats-card-header">
+              <span class="text-secondary font-medium">Avg Execution</span>
+            </div>
+            <div class="stats-card-value" id="stat-latency">-</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Users table -->
+          <div class="card">
+            <h3 style="margin-bottom: var(--space-4);">User List</h3>
+            <div class="table-container">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-table">
+                  <!-- Filled dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Audit Logs table -->
+          <div class="card">
+            <h3 style="margin-bottom: var(--space-4);">Recent Platform Audit Logs</h3>
+            <div class="table-container">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>Details</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-audit-table">
+                  <!-- Filled dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { api } from '/js/api.js';
+    import { getCurrentUser, requireAdmin } from '/js/auth.js';
+    import { showToast, formatDate } from '/js/utils.js';
+
+    // Verify admin privileges
+    requireAdmin();
+
+    const user = getCurrentUser();
+    if (user) {
+      document.getElementById('user-name').innerText = user.username;
+      document.getElementById('user-role').innerText = user.role;
+    }
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      api.logout();
+    });
+
+    async function loadAdminData() {
+      try {
+        // Platform Stats
+        const stats = await api.getPlatformStats();
+        document.getElementById('stat-users').innerText = stats.total_users;
+        document.getElementById('stat-queries').innerText = stats.total_queries;
+        document.getElementById('stat-active').innerText = stats.active_users_24h;
+        document.getElementById('stat-latency').innerText = `${stats.avg_execution_time_ms}ms`;
+
+        // Load Users
+        const users = await api.getUsers();
+        const usersBody = document.getElementById('admin-users-table');
+        usersBody.innerHTML = '';
+        users.forEach(u => {
+          const tr = document.createElement('tr');
+          const isMe = u.id === user.id;
+          tr.innerHTML = `
+            <td>${escapeHtml(u.username)}</td>
+            <td>${escapeHtml(u.email)}</td>
+            <td>
+              <span class="badge ${u.role === 'admin' ? 'badge-error' : 'badge-info'}">${u.role}</span>
+            </td>
+            <td>
+              <span class="badge ${u.is_active ? 'badge-success' : 'badge-warning'}">
+                ${u.is_active ? 'active' : 'inactive'}
+              </span>
+            </td>
+            <td>
+              ${isMe ? '-' : `
+                <button class="btn btn-secondary btn-change-role" data-id="${u.id}" data-role="${u.role}" style="padding: var(--space-1) var(--space-2); font-size: var(--text-xs);">
+                  Role
+                </button>
+                <button class="btn btn-danger btn-deactivate" data-id="${u.id}" ${!u.is_active ? 'disabled' : ''} style="padding: var(--space-1) var(--space-2); font-size: var(--text-xs);">
+                  Deactivate
+                </button>
+              `}
+            </td>
+          `;
+          usersBody.appendChild(tr);
+        });
+
+        // Load Audit Logs
+        const logs = await api.getAuditLogs(10);
+        const auditBody = document.getElementById('admin-audit-table');
+        auditBody.innerHTML = '';
+        if (logs.length === 0) {
+          auditBody.innerHTML = '<tr><td colspan="3" class="text-tertiary" style="text-align: center;">No audit logs recorded yet.</td></tr>';
+        } else {
+          logs.forEach(log => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><strong>${escapeHtml(log.action)}</strong></td>
+              <td>${escapeHtml(log.details || '-')}</td>
+              <td>${formatDate(log.created_at)}</td>
+            `;
+            auditBody.appendChild(tr);
+          });
+        }
+
+        // Action bindings
+        document.querySelectorAll('.btn-change-role').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const id = e.currentTarget.getAttribute('data-id');
+            const currentRole = e.currentTarget.getAttribute('data-role');
+            const targetRole = currentRole === 'analyst' ? 'viewer' : 'analyst';
+            
+            if (confirm(`Change user role to ${targetRole}?`)) {
+              try {
+                await api.updateUserRole(id, targetRole);
+                showToast('Role updated successfully');
+                loadAdminData();
+              } catch (err) {
+                showToast('Failed to change role', 'error');
+              }
+            }
+          });
+        });
+
+        document.querySelectorAll('.btn-deactivate').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const id = e.currentTarget.getAttribute('data-id');
+            if (confirm('Are you sure you want to deactivate this user account?')) {
+              try {
+                await api.deactivateUser(id);
+                showToast('User deactivated');
+                loadAdminData();
+              } catch (err) {
+                showToast('Failed to deactivate user', 'error');
+              }
+            }
+          });
+        });
+
+      } catch (err) {
+        console.error('Failed to load admin panel data', err);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    loadAdminData();
+  </script>
+</body>
+</html>

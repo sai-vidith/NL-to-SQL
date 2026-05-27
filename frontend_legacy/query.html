@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus — Query Workspace</title>
+  
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    .workspace-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: var(--space-6);
+      height: calc(100vh - var(--header-height) - var(--space-12));
+    }
+    
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-6);
+    }
+    
+    .message {
+      max-width: 80%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+    
+    .message-user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+    
+    .message-ai {
+      align-self: flex-start;
+      align-items: flex-start;
+      width: 100%;
+    }
+    
+    .message-bubble {
+      padding: var(--space-4) var(--space-5);
+      border-radius: var(--radius-lg);
+      font-size: var(--text-md);
+      line-height: 1.5;
+    }
+    
+    .message-user .message-bubble {
+      background: var(--gradient-primary);
+      color: var(--text-primary);
+      border-bottom-right-radius: var(--radius-sm);
+    }
+    
+    .message-ai .message-bubble {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--text-primary);
+      border-bottom-left-radius: var(--radius-sm);
+      width: 100%;
+    }
+    
+    .chat-input-bar {
+      padding: var(--space-4);
+      border-top: 1px solid var(--glass-border);
+      background: rgba(10, 10, 26, 0.4);
+      display: flex;
+      gap: var(--space-3);
+    }
+    
+    .workspace-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-6);
+      height: 100%;
+      overflow-y: auto;
+    }
+    
+    .toggle-sql-btn {
+      font-size: var(--text-xs);
+      color: var(--accent-cyan);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      margin-bottom: var(--space-2);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-layout animate-fade-in">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon pulse-glow"></div>
+          <span class="gradient-text">Nexus</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/query.html" class="nav-link active">
+          <span class="nav-icon">💬</span>
+          <span>Query Workspace</span>
+        </a>
+        <a href="/history.html" class="nav-link">
+          <span class="nav-icon">📜</span>
+          <span>History</span>
+        </a>
+        <a href="/saved.html" class="nav-link">
+          <span class="nav-icon">🔖</span>
+          <span>Saved Queries</span>
+        </a>
+        <a href="/admin.html" id="admin-nav-link" class="nav-link hidden">
+          <span class="nav-icon">🛡️</span>
+          <span>Admin Panel</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-name" id="user-name">Loading...</div>
+          <div class="user-role" id="user-role">viewer</div>
+        </div>
+        <button class="btn btn-ghost" id="btn-logout" style="padding: var(--space-2);">
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="header">
+        <h2 style="font-size: var(--text-xl);">Interactive SQL Workspace</h2>
+        <div>Session: <span id="session-id-display" class="font-mono text-xs text-secondary">None</span></div>
+      </header>
+
+      <div class="page-container" style="padding: var(--space-6);">
+        <div class="workspace-layout">
+          <!-- Left Panel: Conversational Workspace -->
+          <div class="chat-panel">
+            <div class="chat-messages" id="chat-messages">
+              <!-- Empty state greeting -->
+              <div id="empty-workspace" class="flex flex-col items-center justify-center gap-4" style="height: 100%; text-align: center; max-width: 500px; margin: 0 auto;">
+                <div style="font-size: 3rem;">⚡</div>
+                <h3>Ask Nexus a Business Question</h3>
+                <p style="font-size: var(--text-sm);">
+                  Nexus will dynamically translate your question to highly optimized SQL, safely query the database, explain the findings, and generate a customized chart.
+                </p>
+                <div class="flex" style="flex-wrap: wrap; gap: var(--space-2); justify-content: center;" id="workspace-suggestions"></div>
+              </div>
+            </div>
+            
+            <form id="chat-form" class="chat-input-bar">
+              <input type="text" id="chat-input" class="input" placeholder="Ask a business question... (e.g. Show monthly sales trend for 2025)" required style="height: 44px;">
+              <button type="submit" class="btn btn-primary" style="height: 44px;">
+                Analyze
+              </button>
+            </form>
+          </div>
+
+          <!-- Right Panel: Context & Actions -->
+          <div class="workspace-sidebar">
+            <div class="card">
+              <h4 style="margin-bottom: var(--space-4);">Quick Export</h4>
+              <div class="flex flex-col gap-3">
+                <button class="btn btn-secondary" id="btn-export-csv" disabled style="width: 100%;">
+                  📥 Export CSV
+                </button>
+                <button class="btn btn-secondary" id="btn-export-excel" disabled style="width: 100%;">
+                  📊 Export Excel (.xlsx)
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <h4 style="margin-bottom: var(--space-4);">Save Query Shortcut</h4>
+              <p style="font-size: var(--text-xs); margin-bottom: var(--space-3);">
+                Save this query structure for instant retrieval.
+              </p>
+              <form id="save-query-form">
+                <div class="form-group">
+                  <input type="text" id="save-query-name" class="input" placeholder="Query name (e.g., Q1 Revenue)" required disabled>
+                </div>
+                <div class="form-group">
+                  <input type="text" id="save-query-desc" class="input" placeholder="Description (Optional)" disabled>
+                </div>
+                <button type="submit" class="btn btn-primary" id="btn-save-query" disabled style="width: 100%;">
+                  Bookmark Query
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { api } from '/js/api.js';
+    import { getCurrentUser, requireAuth } from '/js/auth.js';
+    import { highlightSQL, showToast, formatDate } from '/js/utils.js';
+    import { createChart } from '/js/charts.js';
+
+    requireAuth();
+
+    const user = getCurrentUser();
+    if (user) {
+      document.getElementById('user-name').innerText = user.username;
+      document.getElementById('user-role').innerText = user.role;
+      if (user.role === 'admin') {
+        document.getElementById('admin-nav-link').classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      api.logout();
+    });
+
+    let currentSessionId = null;
+    let latestQueryId = null;
+
+    const chatMessages = document.getElementById('chat-messages');
+    const emptyWorkspace = document.getElementById('empty-workspace');
+    const chatInput = document.getElementById('chat-input');
+    const displaySession = document.getElementById('session-id-display');
+
+    // Sidebar controls
+    const btnExportCSV = document.getElementById('btn-export-csv');
+    const btnExportExcel = document.getElementById('btn-export-excel');
+    const saveQueryName = document.getElementById('save-query-name');
+    const saveQueryDesc = document.getElementById('save-query-desc');
+    const btnSaveQuery = document.getElementById('btn-save-query');
+
+    // Fetch initial suggestions
+    async function loadWorkspaceSuggestions() {
+      try {
+        const suggestions = await api.getSuggestions();
+        const container = document.getElementById('workspace-suggestions');
+        container.innerHTML = '';
+        suggestions.slice(0, 4).forEach(sugg => {
+          const pill = document.createElement('div');
+          pill.className = 'suggestion-chip';
+          pill.innerHTML = `<span>${sugg.icon}</span> <span>${sugg.text}</span>`;
+          pill.addEventListener('click', () => {
+            chatInput.value = sugg.text;
+          });
+          container.appendChild(pill);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    loadWorkspaceSuggestions();
+
+    // Check for query parameter passed from dashboard
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialQuestion = urlParams.get('q');
+    if (initialQuestion) {
+      chatInput.value = initialQuestion;
+      // Delay submit slightly to allow lifecycle components initialization
+      setTimeout(() => triggerQuerySubmit(initialQuestion), 200);
+    }
+
+    document.getElementById('chat-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const question = chatInput.value.trim();
+      if (!question) return;
+      triggerQuerySubmit(question);
+    });
+
+    async function triggerQuerySubmit(question) {
+      chatInput.value = '';
+      
+      // Hide empty state
+      emptyWorkspace.style.display = 'none';
+
+      // 1. Add User Message
+      addUserMessage(question);
+      
+      // 2. Add Typing Indicator
+      const typingId = addTypingIndicator();
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      try {
+        const response = await api.submitQuery(question, currentSessionId);
+        
+        // Remove typing indicator
+        document.getElementById(typingId).remove();
+
+        currentSessionId = response.session_id;
+        latestQueryId = response.id;
+        displaySession.innerText = currentSessionId.substring(0, 8) + '...';
+
+        // 3. Add AI Response Bubble
+        addAIResponse(response);
+
+        // 4. Enable Export & Bookmark actions
+        enableSidebarActions(response.id);
+
+      } catch (err) {
+        document.getElementById(typingId).remove();
+        addErrorMessage(err.message || 'System error. Failed to analyze question.');
+      }
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function addUserMessage(text) {
+      const msg = document.createElement('div');
+      msg.className = 'message message-user animate-slide-up';
+      msg.innerHTML = `
+        <div class="message-bubble">${escapeHtml(text)}</div>
+        <div class="text-xs text-tertiary">You</div>
+      `;
+      chatMessages.appendChild(msg);
+    }
+
+    function addTypingIndicator() {
+      const id = 'typing-' + Date.now();
+      const msg = document.createElement('div');
+      msg.id = id;
+      msg.className = 'message message-ai animate-slide-up';
+      msg.innerHTML = `
+        <div class="message-bubble" style="max-width: 100px;">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      `;
+      chatMessages.appendChild(msg);
+      return id;
+    }
+
+    function addAIResponse(data) {
+      const msg = document.createElement('div');
+      msg.className = 'message message-ai animate-slide-up';
+      
+      const canvasId = 'chart-' + data.id;
+      
+      msg.innerHTML = `
+        <div class="message-bubble">
+          <div class="flex justify-between items-center" style="margin-bottom: var(--space-3);">
+            <div class="font-semibold text-sm gradient-text">Nexus Analytics</div>
+            <span class="badge badge-success">${data.intent}</span>
+          </div>
+          
+          <p style="margin-bottom: var(--space-4); color: var(--text-primary); font-size: var(--text-md);">${data.summary}</p>
+          
+          <!-- SQL Collapsible block -->
+          <div class="toggle-sql-btn" onclick="this.nextElementSibling.classList.toggle('hidden')">
+            <span>⚙️</span> View generated SQL query
+          </div>
+          <div class="code-block hidden" style="margin-bottom: var(--space-4);">
+            <pre><code>${highlightSQL(data.generated_sql)}</code></pre>
+          </div>
+
+          <!-- Dynamic Chart Box -->
+          ${data.chart_config ? `
+            <div class="card" style="margin-bottom: var(--space-4); height: 260px; position: relative;">
+              <canvas id="${canvasId}"></canvas>
+            </div>
+          ` : ''}
+
+          <!-- Data table -->
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  ${data.columns.map(col => `<th>${escapeHtml(col.replace('_', ' ').toUpperCase())}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${data.rows.map(row => `
+                  <tr>
+                    ${row.map(val => `<td>${escapeHtml(String(val))}</td>`).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="text-xs text-tertiary">Nexus • Executed in ${data.execution_time_ms}ms</div>
+      `;
+      
+      chatMessages.appendChild(msg);
+
+      // Create Chart.js instance if config exists
+      if (data.chart_config) {
+        setTimeout(() => {
+          createChart(
+            canvasId,
+            data.chart_config.chart_type,
+            data.chart_config.labels,
+            data.chart_config.datasets[0].data,
+            data.chart_config.datasets[0].label
+          );
+        }, 100);
+      }
+    }
+
+    function addErrorMessage(text) {
+      const msg = document.createElement('div');
+      msg.className = 'message message-ai animate-slide-up';
+      msg.innerHTML = `
+        <div class="message-bubble" style="border-color: rgba(244, 63, 94, 0.2); background: rgba(244, 63, 94, 0.05);">
+          <div class="font-semibold text-sm text-error" style="margin-bottom: var(--space-2);">Execution Error</div>
+          <p style="color: var(--text-primary);">${escapeHtml(text)}</p>
+        </div>
+      `;
+      chatMessages.appendChild(msg);
+    }
+
+    function enableSidebarActions(queryId) {
+      btnExportCSV.removeAttribute('disabled');
+      btnExportExcel.removeAttribute('disabled');
+      saveQueryName.removeAttribute('disabled');
+      saveQueryDesc.removeAttribute('disabled');
+      btnSaveQuery.removeAttribute('disabled');
+
+      // Bind direct download links
+      btnExportCSV.onclick = () => {
+        window.location.href = api.exportCSVUrl(queryId);
+      };
+      
+      btnExportExcel.onclick = () => {
+        window.location.href = api.exportExcelUrl(queryId);
+      };
+    }
+
+    // Save Query bookmark handler
+    document.getElementById('save-query-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!latestQueryId) return;
+
+      const name = saveQueryName.value;
+      const desc = saveQueryDesc.value;
+
+      try {
+        await api.saveQuery(name, desc, latestQueryId);
+        showToast('Query saved successfully!');
+        saveQueryName.value = '';
+        saveQueryDesc.value = '';
+      } catch (err) {
+        showToast(err.message || 'Failed to save query', 'error');
+      }
+    });
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

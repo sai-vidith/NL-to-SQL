@@ -1,0 +1,37 @@
+# --- Python / Backend Ignored Files ---
+backend/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/venv/
+backend/.venv/
+backend/env/
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/nlsql.db
+backend/nlsql.db-journal
+
+# --- Node / Frontend Ignored Files ---
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/dist-ssr/
+frontend/*.local
+
+# --- Environment Secrets (CRITICAL) ---
+.env
+backend/.env
+frontend/.env
+
+# --- Editor / IDE Configs ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# --- OS Specific Files ---
+.DS_Store
+Thumbs.db

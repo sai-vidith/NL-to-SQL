@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus — Bookmarked Saved Queries</title>
+  
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/animations.css">
+</head>
+<body>
+
+  <div class="app-layout animate-fade-in">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon pulse-glow"></div>
+          <span class="gradient-text">Nexus</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/query.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>Query Workspace</span>
+        </a>
+        <a href="/history.html" class="nav-link">
+          <span class="nav-icon">📜</span>
+          <span>History</span>
+        </a>
+        <a href="/saved.html" class="nav-link active">
+          <span class="nav-icon">🔖</span>
+          <span>Saved Queries</span>
+        </a>
+        <a href="/admin.html" id="admin-nav-link" class="nav-link hidden">
+          <span class="nav-icon">🛡️</span>
+          <span>Admin Panel</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-name" id="user-name">Loading...</div>
+          <div class="user-role" id="user-role">viewer</div>
+        </div>
+        <button class="btn btn-ghost" id="btn-logout" style="padding: var(--space-2);">
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="header">
+        <h2 style="font-size: var(--text-xl);">Bookmarks & Saved Queries</h2>
+      </header>
+
+      <div class="page-container">
+        <!-- Grid of bookmarks -->
+        <div class="grid-3" id="bookmarks-grid">
+          <!-- Filled dynamically -->
+        </div>
+
+        <div id="saved-empty-state" class="hidden" style="text-align: center; max-width: 400px; margin: var(--space-16) auto;">
+          <div style="font-size: 3rem; margin-bottom: var(--space-4);">🔖</div>
+          <h3>No Saved Queries</h3>
+          <p style="margin-bottom: var(--space-6);">When you submit questions in the query workspace, click "Bookmark Query" in the sidebar to save templates here.</p>
+          <a href="/query.html" class="btn btn-primary">Go to Workspace</a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Edit Description Modal -->
+  <div class="modal-overlay hidden" id="edit-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Edit Saved Query</h3>
+        <button class="btn-ghost" id="btn-close-modal">✕</button>
+      </div>
+      <form id="edit-query-form">
+        <div class="modal-body">
+          <input type="hidden" id="edit-query-id">
+          <div class="form-group">
+            <label class="form-label">Query Label</label>
+            <input type="text" id="edit-query-name" class="input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="edit-query-desc" class="textarea"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { api } from '/js/api.js';
+    import { getCurrentUser, requireAuth } from '/js/auth.js';
+    import { showToast } from '/js/utils.js';
+
+    requireAuth();
+
+    const user = getCurrentUser();
+    if (user) {
+      document.getElementById('user-name').innerText = user.username;
+      document.getElementById('user-role').innerText = user.role;
+      if (user.role === 'admin') {
+        document.getElementById('admin-nav-link').classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      api.logout();
+    });
+
+    const grid = document.getElementById('bookmarks-grid');
+    const emptyState = document.getElementById('saved-empty-state');
+    const editModal = document.getElementById('edit-modal');
+
+    async function loadSavedQueries() {
+      try {
+        const items = await api.getSavedQueries();
+        grid.innerHTML = '';
+
+        if (items.length === 0) {
+          grid.classList.add('hidden');
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        grid.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+
+        items.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'card card-hover flex flex-col justify-between';
+          card.innerHTML = `
+            <div>
+              <div class="flex justify-between items-start" style="margin-bottom: var(--space-3);">
+                <h4 style="color: var(--accent-cyan);">${escapeHtml(item.name)}</h4>
+                <span style="font-size: var(--text-xs); color: var(--text-tertiary);">Bookmark</span>
+              </div>
+              <p style="font-size: var(--text-sm); color: var(--text-primary); margin-bottom: var(--space-3);">
+                "${escapeHtml(item.nl_question)}"
+              </p>
+              <p style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: var(--space-4);">
+                ${escapeHtml(item.description || 'No description.')}
+              </p>
+            </div>
+            <div class="flex gap-2" style="border-top: 1px solid var(--glass-border); padding-top: var(--space-4); margin-top: var(--space-4);">
+              <button class="btn btn-primary btn-run-saved" data-question="${escapeHtml(item.nl_question)}" style="flex: 1; padding: var(--space-2) var(--space-3); font-size: var(--text-xs);">
+                Run
+              </button>
+              <button class="btn btn-secondary btn-edit-saved" data-id="${item.id}" data-name="${escapeHtml(item.name)}" data-desc="${escapeHtml(item.description)}" style="padding: var(--space-2);">
+                ✏️
+              </button>
+              <button class="btn btn-danger btn-delete-saved" data-id="${item.id}" style="padding: var(--space-2);">
+                🗑️
+              </button>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+        // Event bindings
+        document.querySelectorAll('.btn-run-saved').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const question = e.currentTarget.getAttribute('data-question');
+            window.location.href = `/query.html?q=${encodeURIComponent(question)}`;
+          });
+        });
+
+        document.querySelectorAll('.btn-edit-saved').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.getAttribute('data-id');
+            const name = e.currentTarget.getAttribute('data-name');
+            const desc = e.currentTarget.getAttribute('data-desc');
+            
+            document.getElementById('edit-query-id').value = id;
+            document.getElementById('edit-query-name').value = name;
+            document.getElementById('edit-query-desc').value = desc === 'null' ? '' : desc;
+            
+            editModal.classList.remove('hidden');
+          });
+        });
+
+        document.querySelectorAll('.btn-delete-saved').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const id = e.currentTarget.getAttribute('data-id');
+            if (confirm('Are you sure you want to delete this bookmark?')) {
+              try {
+                await api.deleteSavedQuery(id);
+                showToast('Bookmark deleted!');
+                loadSavedQueries();
+              } catch (err) {
+                showToast('Failed to delete query', 'error');
+              }
+            }
+          });
+        });
+
+      } catch (err) {
+        console.error('Failed to load saved queries', err);
+      }
+    }
+
+    // Modal closures
+    const closeModal = () => editModal.classList.add('hidden');
+    document.getElementById('btn-close-modal').addEventListener('click', closeModal);
+    document.getElementById('btn-cancel-modal').addEventListener('click', closeModal);
+
+    // Edit form submit
+    document.getElementById('edit-query-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-query-id').value;
+      const name = document.getElementById('edit-query-name').value;
+      const description = document.getElementById('edit-query-desc').value;
+
+      try {
+        await api.updateSavedQuery(id, { name, description });
+        showToast('Saved query updated!');
+        closeModal();
+        loadSavedQueries();
+      } catch (err) {
+        showToast(err.message || 'Failed to update', 'error');
+      }
+    });
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    loadSavedQueries();
+  </script>
+</body>
+</html>

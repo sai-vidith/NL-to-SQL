@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus — Premium NL-to-SQL Analytics</title>
+  
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/animations.css">
+  
+  <style>
+    .auth-container {
+      display: flex;
+      min-height: 100vh;
+      width: 100vw;
+    }
+    
+    .auth-hero {
+      flex: 1.2;
+      background: linear-gradient(135deg, rgba(10,10,26,0.9), rgba(15,22,41,0.95)), 
+                  radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15), transparent),
+                  radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.15), transparent);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: var(--space-16);
+      border-right: 1px solid var(--glass-border);
+      position: relative;
+    }
+    
+    .auth-form-side {
+      flex: 0.9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-12);
+      background: rgba(10, 10, 26, 0.3);
+    }
+    
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+    }
+    
+    @media (max-width: 1024px) {
+      .auth-hero { display: none; }
+      .auth-form-side { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-hero animate-fade-in">
+      <div class="brand" style="font-size: 2rem; margin-bottom: var(--space-8);">
+        <div class="brand-icon pulse-glow"></div>
+        <span class="gradient-text">Nexus</span>
+      </div>
+      <h1 class="gradient-text" style="font-size: 3rem; line-height: 1.1; margin-bottom: var(--space-4);">
+        Your AI-Powered Business Intelligence
+      </h1>
+      <p style="font-size: var(--text-lg); line-height: 1.6; max-width: 560px;">
+        Ask business queries in natural language, and let Nexus generate safe SQL, retrieve database insights, and construct premium analytics charts instantly.
+      </p>
+    </div>
+    
+    <div class="auth-form-side">
+      <!-- Login Card -->
+      <div id="login-card" class="card auth-card animate-slide-up">
+        <h2 class="gradient-text" style="margin-bottom: var(--space-2);">Welcome back</h2>
+        <p style="margin-bottom: var(--space-6);">Enter your details to access your dashboard</p>
+        
+        <form id="login-form">
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="login-email" class="input" placeholder="name@company.com" required>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: var(--space-6);">
+            <label class="form-label">Password</label>
+            <input type="password" id="login-password" class="input" placeholder="••••••••" required>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" style="width: 100%; height: 44px; margin-bottom: var(--space-6);">
+            Sign In
+          </button>
+        </form>
+        
+        <p style="text-align: center; font-size: var(--text-sm);">
+          Don't have an account? 
+          <a href="#" id="to-register" style="font-weight: 500;">Register here</a>
+        </p>
+      </div>
+
+      <!-- Register Card -->
+      <div id="register-card" class="card auth-card animate-slide-up hidden">
+        <h2 class="gradient-text" style="margin-bottom: var(--space-2);">Create Account</h2>
+        <p style="margin-bottom: var(--space-6);">Get started with automated SQL analytics</p>
+        
+        <form id="register-form">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" id="register-username" class="input" placeholder="analyst_jane" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="register-email" class="input" placeholder="jane@company.com" required>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: var(--space-6);">
+            <label class="form-label">Password</label>
+            <input type="password" id="register-password" class="input" placeholder="•••••••• (Min 8 chars)" required>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" style="width: 100%; height: 44px; margin-bottom: var(--space-6);">
+            Create Account
+          </button>
+        </form>
+        
+        <p style="text-align: center; font-size: var(--text-sm);">
+          Already have an account? 
+          <a href="#" id="to-login" style="font-weight: 500;">Sign in here</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { api } from '/js/api.js';
+    import { initAuthGuard } from '/js/auth.js';
+    import { showToast } from '/js/utils.js';
+
+    // Guard login route
+    initAuthGuard();
+
+    const loginCard = document.getElementById('login-card');
+    const registerCard = document.getElementById('register-card');
+    const toRegister = document.getElementById('to-register');
+    const toLogin = document.getElementById('to-login');
+
+    toRegister.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginCard.classList.add('hidden');
+      registerCard.classList.remove('hidden');
+    });
+
+    toLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      registerCard.classList.add('hidden');
+      loginCard.classList.remove('hidden');
+    });
+
+    // Login Form Submit
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      
+      try {
+        await api.login(email, password);
+        showToast('Login successful!');
+        setTimeout(() => window.location.href = '/dashboard.html', 800);
+      } catch (err) {
+        showToast(err.message || 'Login failed', 'error');
+      }
+    });
+
+    // Register Form Submit
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('register-username').value;
+      const email = document.getElementById('register-email').value;
+      const password = document.getElementById('register-password').value;
+
+      try {
+        await api.register(username, email, password);
+        showToast('Registration successful!');
+        setTimeout(() => window.location.href = '/dashboard.html', 800);
+      } catch (err) {
+        showToast(err.message || 'Registration failed', 'error');
+      }
+    });
+  </script>
+</body>
+</html>
